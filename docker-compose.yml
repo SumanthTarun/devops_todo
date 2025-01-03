@@ -1,0 +1,10 @@
+version: '3'
+services:
+  app:
+    image: devops-todo-app      # The name of your image
+    build: .                    # Tells Docker Compose to build the image using the Dockerfile
+    ports:
+      - "3000:3000"             # Map port 3000 of the container to port 3000 on your machine
+    environment:
+      - HOST=0.0.0.0            # Listen on all interfaces
+      - PORT=3000               # Use port 3000
