@@ -1,58 +1,46 @@
 name: CI/CD Pipeline
 
-# This workflow will run when there's a push to the main branch
 on:
   push:
     branches:
-      - main
+      - main  # Trigger on push to the main branch
+  pull_request:
+    branches:
+      - main  # Trigger on PRs targeting the main branch
 
 jobs:
-  # Job to build and push Docker image
-  build_and_push:
-    runs-on: ubuntu-latest
+  build_and_deploy:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner
+
     steps:
-      # Step 1: Checkout the code from GitHub
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v2  # Checkout the repo so the workflow can access it
 
-      # Step 2: Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+    # Step to log in to DockerHub
+    - name: Log in to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}  # Docker username
+        password: ${{ secrets.DOCKER_PASSWORD }}  # Docker password
 
-      # Step 3: Log in to Docker Hub (credentials stored as secrets)
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}  # Docker Hub username
-          password: ${{ secrets.DOCKER_PASSWORD }}  # Docker Hub password
+    # Step to build the Docker image
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ secrets.DOCKER_USERNAME }}/devops-todo-app .
 
-      # Step 4: Build the Docker image
-      - name: Build Docker image
-        run: |
-          docker build -t yourusername/devops-todo-app .
+    # Step to push the Docker image to Docker Hub
+    - name: Push Docker image to Docker Hub
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/devops-todo-app
 
-      # Step 5: Push the Docker image to Docker Hub
-      - name: Push Docker image
-        run: |
-          docker push yourusername/devops-todo-app
-
-  # Job to deploy the app using Docker Compose
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build_and_push  # This job runs only after build_and_push
-    steps:
-      # Step 1: Checkout the code (again, if needed)
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      # Step 2: SSH into your server and deploy using Docker Compose
-      - name: Deploy app on server
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}  # Your server IP
-          username: ${{ secrets.SERVER_USER }}  # SSH username
-          key: ${{ secrets.SERVER_SSH_KEY }}  # SSH private key stored in GitHub secrets
-          script: |
-            cd /path/to/your/app
-            docker-compose pull  # Pull the latest image from Docker Hub
-            docker-compose up -d  # Start the container in detached mode
+    # Step to deploy the app on a server using docker-compose
+    - name: Deploy app using Docker Compose
+      uses: appleboy/ssh-action@v0.1.6  # SSH into the server
+      with:
+        host: ${{ secrets.SERVER_HOST }}  # Server IP or hostname
+        username: ${{ secrets.SERVER_USER }}  # Server SSH username
+        key: ${{ secrets.SERVER_SSH_KEY }}  # SSH private key
+        script: |
+          cd /path/to/your/project  # Navigate to your app's directory
+          docker pull ${{ secrets.DOCKER_USERNAME }}/devops-todo-app  # Pull the latest image
+          docker-compose up -d  # Start the container using docker-compose
